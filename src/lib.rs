@@ -133,10 +133,47 @@ impl Solution {
             println!("right being pushed to new end from {:?} to {:?}", right ,end);
             left = right+1;
             right = end;
-            for i in left..=right {
+            // for i in left..=right {
+            //     let range_c = s.chars().nth(i).unwrap();
+            //     let index = range_c as usize - 97;
+            //     let new_end = letter_pos[index].last().unwrap().clone();
+            //     if new_end > end {
+            //         end = new_end;
+            //     }
+            // }
+
+            'inner: for i in left..=right {
                 let range_c = s.chars().nth(i).unwrap();
+                if range_c == current_c {
+                    continue 'inner;
+                }
                 let index = range_c as usize - 97;
+                let new_start = letter_pos[index].first().unwrap().clone();
                 let new_end = letter_pos[index].last().unwrap().clone();
+                // if new_end < right {
+                    println!("further deciding sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
+                if Solution::current_c_not_sandwiched_by(letter_pos, current_c, new_start, new_end) {
+                    println!("further not sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
+                    
+                    if non_push_ranges.len() == 0 {
+                        let range = (i,i);
+                        non_push_ranges.push(range);
+                    } else {
+                        let length = non_push_ranges.len();
+                        let last_range = non_push_ranges[length-1];
+                        let (pre, post) = last_range;
+                        if post == i - 1 {
+                            println!("extends last non_push_ranges ele {:?}", non_push_ranges);
+                            
+                            std::mem::replace(&mut non_push_ranges[length-1] , (pre, i));
+                            println!("after extends {:?}", non_push_ranges);
+                        } else {
+                            let range = (i,i);
+                            non_push_ranges.push(range);
+                        }
+                    }
+                    println!("current non_push_ranges: {:?}", non_push_ranges);
+                }
                 if new_end > end {
                     end = new_end;
                 }
@@ -161,15 +198,6 @@ impl Solution {
         }
 
         return result;
-
-        
-
-        
-
-        
-
-        
-
     }
 
     fn find_result(s: &str, letter_pos: &Vec<Vec<usize>>, begin: usize, end: usize) -> Vec<(usize, usize)> {
@@ -221,7 +249,7 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-        let result = Solution::max_num_of_substrings(String::from("adefaddaccc"));
+        let result = Solution::max_num_of_substrings(String::from("adefaddaccchg"));
         println!("result: {:?}", result);
     }
 }
