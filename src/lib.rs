@@ -52,6 +52,22 @@ impl Solution {
 
     }
 
+    fn current_cs_not_sandwiched_by(letter_pos: &Vec<Vec<usize>>, cs: &Vec<char>, start: usize, end: usize) -> bool {
+
+        let mut flag = true;
+
+        for c in cs.iter() {
+            
+            flag = Solution::current_c_not_sandwiched_by(letter_pos, *c, start, end);
+            if flag == false {
+                return false;
+            }
+
+
+        }
+        return flag;
+    }
+
     fn current_c_not_sandwiched_by(letter_pos: &Vec<Vec<usize>>, current_c: char, start: usize, end: usize) -> bool {
 
         let current_index = current_c as usize - 97;
@@ -90,6 +106,7 @@ impl Solution {
 
         let mut end = right;
         let mut non_push_ranges: Vec<(usize, usize)> = Vec::new();
+        let mut sticky_members: Vec<char> = vec![];
 
         'outer: for i in left..=right {
             let range_c = s.chars().nth(i).unwrap();
@@ -113,7 +130,6 @@ impl Solution {
                     let (pre, post) = last_range;
                     if post == i - 1 {
                         println!("extends last non_push_ranges ele {:?}", non_push_ranges);
-                        
                         std::mem::replace(&mut non_push_ranges[length-1] , (pre, i));
                         println!("after extends {:?}", non_push_ranges);
                     } else {
@@ -122,6 +138,8 @@ impl Solution {
                     }
                 }
                 println!("current non_push_ranges: {:?}", non_push_ranges);
+            } else {
+                sticky_members.push(range_c);
             }
             if new_end > end {
                 end = new_end;
@@ -151,9 +169,10 @@ impl Solution {
                 let new_start = letter_pos[index].first().unwrap().clone();
                 let new_end = letter_pos[index].last().unwrap().clone();
                 // if new_end < right {
-                    println!("further deciding sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
-                if Solution::current_c_not_sandwiched_by(letter_pos, current_c, new_start, new_end) {
-                    println!("further not sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
+                println!("further deciding sandwich for {:?} from {:?}: {:?}, {:?}", range_c, sticky_members, new_start, new_end);
+                
+                if !sticky_members.contains(&range_c) && Solution::current_cs_not_sandwiched_by(letter_pos, &sticky_members, new_start, new_end) {
+                    println!("further not sandwich for {:?} from {:?}: {:?}, {:?}", range_c, sticky_members, new_start, new_end);
                     
                     if non_push_ranges.len() == 0 {
                         let range = (i,i);
@@ -174,6 +193,7 @@ impl Solution {
                     }
                     println!("current non_push_ranges: {:?}", non_push_ranges);
                 }
+                
                 if new_end > end {
                     end = new_end;
                 }
@@ -249,7 +269,7 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-        let result = Solution::max_num_of_substrings(String::from("adefaddaccchg"));
+        let result = Solution::max_num_of_substrings(String::from("adefaddaccchgecc"));
         println!("result: {:?}", result);
     }
 }
