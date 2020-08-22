@@ -1,8 +1,16 @@
+mod front_of_house;
+
+//use crate::front_of_house::DerefMutExample;
+
 pub struct Solution {}
+
+use std::collections::HashSet;
+
+
 
 impl Solution {
 
-    fn build_letter_pos(letter_pos: &mut Vec<Vec<usize>>, s: &str) {
+    fn build_letter_pos(s: &str, letter_pos: &mut Vec<Vec<usize>>) {
 
         for (position, letter) in s.chars().enumerate() {
             let index = letter as usize - 97;
@@ -16,226 +24,139 @@ impl Solution {
 
     }
 
-    fn cal_range_for(s: &str, letter_pos: &Vec<Vec<usize>>, from: usize) -> (usize, usize) {
-
-        let current_c = s.chars().nth(from).unwrap();
-        let index = current_c as usize - 97;
-
-        let mut left = from.clone();
-        let mut right = letter_pos[index].last().unwrap().clone();
-        let mut end = right;
-
-        for i in left..=right {
-            let current_c = s.chars().nth(i).unwrap();
-            let index = current_c as usize - 97;
-            let new_end = letter_pos[index].last().unwrap().clone();
-            if new_end > end {
-                end = new_end;
-            }
+    fn sticky_letter (letter: char, sticky_letters: &Vec<bool>, letter_pos: &mut Vec<Vec<usize>>) -> bool {
+        let letter_index = letter as usize - 97;
+        if sticky_letters[letter_index] {
+            // if letter == 'e' {
+            //     println!("e hit with already sticky set");
+            // }
+            return true;
         }
 
-        while right < end {
-            println!("right being pushed to new end from {:?} to {:?}", right ,end);
-            left = right+1;
-            right = end;
-            for i in left..=right {
-                let current_c = s.chars().nth(i).unwrap();
-                let index = current_c as usize - 97;
-                let new_end = letter_pos[index].last().unwrap().clone();
-                if new_end > end {
-                    end = new_end;
+        for (pos, sticky) in sticky_letters.iter().enumerate() {
+            if *sticky {
+                let cur_left = *letter_pos[letter_index].first().unwrap();
+                let cur_right = *letter_pos[letter_index].last().unwrap();
+                for sticky_letter_pos in letter_pos[pos].iter() {
+                    if *sticky_letter_pos > cur_left && *sticky_letter_pos < cur_right {
+                        return true;
+                    }
                 }
+                // let sticky_left = *letter_pos[pos].first().unwrap();
+                // let sticky_right = *letter_pos[pos].last().unwrap();
+
+                // if !(cur_right < sticky_left || sticky_right < cur_left) {
+                //     if letter == 'e' {
+                //         println!("e hit with cur_left: {:?}, cur_right: {:?}, sticky_left: {:?}, sticky_right: {:?}", cur_left,cur_right, sticky_left, sticky_right);
+                //     }
+                //     return true;
+                // }
             }
-        }
-
-        return (from, right);
-
-    }
-
-    fn current_cs_not_sandwiched_by(letter_pos: &Vec<Vec<usize>>, cs: &Vec<char>, start: usize, end: usize) -> bool {
-
-        let mut flag = true;
-
-        for c in cs.iter() {
             
-            flag = Solution::current_c_not_sandwiched_by(letter_pos, *c, start, end);
-            if flag == false {
-                return false;
-            }
-
-
         }
-        return flag;
+        return false;
     }
 
-    fn current_c_not_sandwiched_by(letter_pos: &Vec<Vec<usize>>, current_c: char, start: usize, end: usize) -> bool {
-
-        let current_index = current_c as usize - 97;
-        let positions = &letter_pos[current_index];
-
-        for pos in positions.iter() {
-            if *pos > start && *pos < end {
-                return false;
-            }
-        }
-
-        return true;
-
-
-    }
-
-    fn find_all_from(s: &str, letter_pos: &Vec<Vec<usize>>, from: usize, original_end: usize) -> Vec<(usize, usize)> {
-
-        println!("find_all_from got called for FROM {:?} TO {:?}", from, original_end);
-
-        if from > original_end {
-            return vec![];
-        }
+    fn push_from(s: &str, from: usize, letter_pos: &mut Vec<Vec<usize>>) ->  Vec<(usize, usize)> {
+        let mut result: Vec<(usize, usize)> = vec![];
 
         let current_c = s.chars().nth(from).unwrap();
+        println!("run push_from from {:?} for letter: {:?}",from, current_c);
+        let mut sticky_members: Vec<bool> = vec![false; 26];
+        sticky_members[current_c as usize - 97] = true;
         let index = current_c as usize - 97;
+        let left = *letter_pos[index].first().unwrap();
+        let right = *letter_pos[index].last().unwrap();
 
-        let mut left = from.clone();
-        let mut right = letter_pos[index].last().unwrap().clone();
-
-        if left == right {
-            let mut result: Vec<(usize, usize)> = vec![(left,right)];
-            result.append(&mut Solution::find_all_from(s, letter_pos, left+1, original_end));
+        if right - left <= 1 { // no need to push, since same letter only appear twice adjacent to each other
+            result.push((left, right));
+            if right < s.len() - 1 {
+                result.append(&mut Solution::push_from(s, right+1, letter_pos));
+            }
             return result;
         }
 
-        let mut end = right;
-        let mut non_push_ranges: Vec<(usize, usize)> = Vec::new();
-        let mut sticky_members: Vec<char> = vec![];
+        let mut right_bound = right;
+        let mut cursor = left + 1;
 
-        'outer: for i in left..=right {
-            let range_c = s.chars().nth(i).unwrap();
-            if range_c == current_c {
-                continue 'outer;
+        while cursor < right_bound {
+            let cursor_letter = s.chars().nth(cursor).unwrap();
+            if Solution::sticky_letter(cursor_letter, &sticky_members, letter_pos) {
+                sticky_members[cursor_letter as usize - 97] = true;
             }
-            let index = range_c as usize - 97;
-            let new_start = letter_pos[index].first().unwrap().clone();
-            let new_end = letter_pos[index].last().unwrap().clone();
-            // if new_end < right {
-                println!("deciding sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
-            if Solution::current_c_not_sandwiched_by(letter_pos, current_c, new_start, new_end) {
-                println!("not sandwich for {:?} from {:?}: {:?}, {:?}", current_c, range_c, new_start, new_end);
-                
-                if non_push_ranges.len() == 0 {
-                    let range = (i,i);
-                    non_push_ranges.push(range);
-                } else {
-                    let length = non_push_ranges.len();
-                    let last_range = non_push_ranges[length-1];
-                    let (pre, post) = last_range;
-                    if post == i - 1 {
-                        println!("extends last non_push_ranges ele {:?}", non_push_ranges);
-                        std::mem::replace(&mut non_push_ranges[length-1] , (pre, i));
-                        println!("after extends {:?}", non_push_ranges);
-                    } else {
-                        let range = (i,i);
-                        non_push_ranges.push(range);
-                    }
-                }
-                println!("current non_push_ranges: {:?}", non_push_ranges);
+            let cursor_right = *letter_pos[cursor_letter as usize - 97].last().unwrap();
+            if right_bound < cursor_right {
+                right_bound = cursor_right;
+            }
+            cursor += 1;
+        }
+
+        // move the cursor to the right most position
+        let mut cursor = right_bound;
+        // do the sticky letter detecting from right_bound back to left
+        // to find the ones not detected by first turn from left to right
+        while cursor >= left {
+            let cursor_letter = s.chars().nth(cursor).unwrap();
+            if Solution::sticky_letter(cursor_letter, &sticky_members, letter_pos) {
+                sticky_members[cursor_letter as usize - 97] = true;
+            }
+            if cursor > 0 {
+                cursor -= 1;
             } else {
-                sticky_members.push(range_c);
-            }
-            if new_end > end {
-                end = new_end;
+                break;
             }
         }
-
-        
-        while right < end {
-            println!("right being pushed to new end from {:?} to {:?}", right ,end);
-            left = right+1;
-            right = end;
-            // for i in left..=right {
-            //     let range_c = s.chars().nth(i).unwrap();
-            //     let index = range_c as usize - 97;
-            //     let new_end = letter_pos[index].last().unwrap().clone();
-            //     if new_end > end {
-            //         end = new_end;
-            //     }
-            // }
-
-            'inner: for i in left..=right {
-                let range_c = s.chars().nth(i).unwrap();
-                if range_c == current_c {
-                    continue 'inner;
+        // find out all possible free ranges and recursively call againt each one and append the result
+        let mut sentinel = usize::MAX;
+        let mut all_sticky: bool = true;
+        for cur_index in left..=right_bound {
+            let current_c = s.chars().nth(cur_index).unwrap();
+            if !sticky_members[current_c as usize - 97] {
+                if sentinel == usize::MAX {
+                    sentinel = cur_index;
                 }
-                let index = range_c as usize - 97;
-                let new_start = letter_pos[index].first().unwrap().clone();
-                let new_end = letter_pos[index].last().unwrap().clone();
-                // if new_end < right {
-                println!("further deciding sandwich for {:?} from {:?}: {:?}, {:?}", range_c, sticky_members, new_start, new_end);
-                
-                if !sticky_members.contains(&range_c) && Solution::current_cs_not_sandwiched_by(letter_pos, &sticky_members, new_start, new_end) {
-                    println!("further not sandwich for {:?} from {:?}: {:?}, {:?}", range_c, sticky_members, new_start, new_end);
-                    
-                    if non_push_ranges.len() == 0 {
-                        let range = (i,i);
-                        non_push_ranges.push(range);
-                    } else {
-                        let length = non_push_ranges.len();
-                        let last_range = non_push_ranges[length-1];
-                        let (pre, post) = last_range;
-                        if post == i - 1 {
-                            println!("extends last non_push_ranges ele {:?}", non_push_ranges);
-                            
-                            std::mem::replace(&mut non_push_ranges[length-1] , (pre, i));
-                            println!("after extends {:?}", non_push_ranges);
-                        } else {
-                            let range = (i,i);
-                            non_push_ranges.push(range);
-                        }
-                    }
-                    println!("current non_push_ranges: {:?}", non_push_ranges);
-                }
-                
-                if new_end > end {
-                    end = new_end;
+            } else {
+                if sentinel != usize::MAX {
+                    let (pair_l, pair_r) = (sentinel, cur_index - 1);
+                    println!("got inner non-sticky: {:?}", (pair_l, pair_r));
+                    result.push((pair_l, pair_r));
+                    all_sticky = false;
+                    sentinel = usize::MAX;
                 }
             }
         }
 
-
-        let mut result: Vec<(usize, usize)> = Vec::new();
-        if non_push_ranges.len() > 0 {
-            for range in non_push_ranges.iter() {
-                result.append(&mut Solution::find_all_from(s, letter_pos, range.0, range.1));
-            }
-            // return result;
-        } else {
-            // let mut package_one = vec![(from, right)];
-            result.push((from, right));
-            // return package_one;
+        if all_sticky {
+            result.push((left, right_bound));
         }
 
-        if end < original_end {
-            result.append(&mut Solution::find_all_from(s, letter_pos, end+1, original_end));
+        println!("sticky_members: {:?}", sticky_members);
+
+        if right_bound < s.len() - 1 {
+            result.append(&mut Solution::push_from(s, right_bound+1, letter_pos));
         }
+        println!("right_bould: {:?}", right_bound);
+        println!("sticky letters: {:?}", sticky_members);
 
         return result;
+        
     }
 
-    fn find_result(s: &str, letter_pos: &Vec<Vec<usize>>, begin: usize, end: usize) -> Vec<(usize, usize)> {
-        let mut result: Vec<(usize, usize)> = Vec::new();
+    fn find_all_from(s: &str, from: usize, original_end: usize, letter_pos: &mut Vec<Vec<usize>>) -> Vec<(usize, usize)> {
+        println!("find_all_from got called for FROM {:?} TO {:?}", from, original_end);
+        if from > original_end {
+            return vec![];
+        }
+        let pos_pairs = Solution::push_from(s, from, letter_pos);
+        return pos_pairs;
+    }
 
+    fn find_result(s: &str, begin: usize, end: usize, letter_pos: &mut Vec<Vec<usize>>) -> Vec<(usize, usize)> {
         if begin == end {
             return vec![(begin, end)];
         }
-
-        
-        let pairs = Solution::find_all_from(s, letter_pos, begin, end);
-
+        let pairs = Solution::find_all_from(s, begin, end, letter_pos);
         println!("all pairs: {:?}", pairs);
-        
-
-        // result.push((2,2));
-        // result.push((3,3));
-        // result.push((8,10));
         return pairs;
     }
 
@@ -244,12 +165,11 @@ impl Solution {
 
         let mut result: Vec<String> = vec![];
 
-        
         let mut letter_pos: Vec<Vec<usize>> = vec![Vec::new(); 26];
 
-        Solution::build_letter_pos(&mut letter_pos, &s);
+        Solution::build_letter_pos(&s, &mut letter_pos);
 
-        let positions = Solution::find_result(&s, &letter_pos, 0, s.len()-1);
+        let positions = Solution::find_result(&s, 0, s.len()-1, &mut letter_pos);
 
         for pos in positions.iter() {
             let mut sub_string = String::new();
@@ -269,7 +189,9 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-        let result = Solution::max_num_of_substrings(String::from("adefaddaccchgecc"));
+        //let result = Solution::max_num_of_substrings(String::from("bbcacbabaef"));
+        //let result = Solution::max_num_of_substrings(String::from("adefaddaccchgecc"));
+        let result = Solution::max_num_of_substrings(String::from("badadbeabcyxzxzyw"));
         println!("result: {:?}", result);
     }
 }
